@@ -14,4 +14,16 @@
                :serapeum
                :array-operations
                :queues
-               :queues.priority-queue))
+               :queues.priority-queue)
+  :in-order-to ((test-op (load-op "cl-watershed/tests")))
+  :perform (test-op (op system)
+                    (declare (ignore op system))
+                    (uiop:symbol-call :cl-watershed-tests '#:run-tests)))
+
+(defsystem :cl-watershed/tests
+  :name :cl-watershed/tests
+  :license "2-clause BSD"
+  :pathname "tests/"
+  :components ((:file "package")
+               (:file "tests" :depends-on ("package")))
+  :depends-on (:cl-watershed :imago :fiveam))
