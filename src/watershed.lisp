@@ -60,6 +60,15 @@
           (simple-array boolean      (* *)))
          (values (simple-array fixnum (* *)) &optional))
 (defun watershed (image seeds &optional (mask (make-default-mask image)))
+  "Perform watershed segmentation on IMAGE. IMAGE must be a 2D
+grayscale image (2D array with element-type SINGLE-FLOAT). SEEDS is a
+2D array with element-type FIXNUM which contains already labeled
+regions of the image. The value 0 means no label. The result is a 2D
+array of labels (element-type FIXNUM).
+
+An optional argument MASK is a 2D array of BOOLEANs. Pixels with
+indices where MASK is NIL are not labeled. By default, all elements in
+MASK are T."
   (declare (type (simple-array single-float (* *)) image)
            (type (simple-array fixnum       (* *)) seeds)
            (type (simple-array boolean      (* *)) mask)

@@ -30,6 +30,9 @@
           &optional function)
          (values (simple-array single-float (* *)) &optional))
 (defun convolve (array kernel &optional (function #'+))
+  "Perform generic convolution of a 2D array ARRAY with kernel
+KERNEL. Summation in the convolution formula is replaced with
+reduction using function FUNCTION."
   (declare (type (simple-array single-float) array kernel))
   (let* ((array-dimensions  (array-dimensions array))
          (kernel-dimensions (array-dimensions kernel))
