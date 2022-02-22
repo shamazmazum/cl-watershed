@@ -44,14 +44,14 @@
               :element-type 'boolean
               :initial-element t))
 
-(defun make-priority-queue (&key (test #'eql) (key #'identity))
-  (declare (optimize (speed 3))
-           (type function test key))
+(defun make-priority-queue ()
+  (declare (optimize (speed 3)))
   (make-queue :priority-queue
               :compare (lambda (x y)
-                         (funcall test
-                                  (funcall key x)
-                                  (funcall key y)))))
+                         (let ((priority-x (car x))
+                               (priority-y (car y)))
+                           (declare (type single-float priority-x priority-y))
+                           (> priority-x priority-y)))))
 
 (sera:-> watershed
          ((simple-array single-float (* *))
@@ -74,7 +74,7 @@ MASK are T."
            (type (simple-array boolean      (* *)) mask)
            (optimize (speed 3)))
   (check-dimensions image seeds mask)
-  (let ((queue (make-priority-queue :test #'> :key #'car))
+  (let ((queue (make-priority-queue))
         (gradient (gradient-norm image))
         (result (copy-array seeds))
         (dimensions (array-dimensions image)))
