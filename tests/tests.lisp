@@ -11,7 +11,6 @@
   (let* ((edt (imago:distance-transform image :type :edt))
          (pixels (image-pixels image))
          (seeds (aops:zeros* 'fixnum (array-dimensions pixels))))
-    (aops:vectorize! edt (edt) (- edt))
 
     (loop
        for label from 1 by 1
@@ -19,8 +18,7 @@
          (setf (apply #'aref seeds seed) label))
 
     (cl-watershed:watershed
-     (aops:vectorize* 'single-float (edt) (- edt))
-     seeds
+     edt seeds
      (aops:vectorize* 'boolean (pixels) (zerop pixels)))))
 
 (defun run-tests ()
