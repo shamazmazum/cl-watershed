@@ -39,6 +39,8 @@
              :seeds-dim seeds-dim
              :mask-dim  mask-dim))))
 
+(sera:-> make-default-mask ((simple-array * (* *)))
+         (values (simple-array boolean (* *)) &optional))
 (defun make-default-mask (array)
   (make-array (array-dimensions array)
               :element-type 'boolean
@@ -50,15 +52,15 @@
               :compare (lambda (x y)
                          (let ((priority-x (car x))
                                (priority-y (car y)))
-                           (declare (type single-float priority-x priority-y))
+                           (declare (type fixnum priority-x priority-y))
                            (> priority-x priority-y)))))
 
 (sera:-> watershed
-         ((simple-array single-float (* *))
-          (simple-array fixnum       (* *))
+         ((simple-array alex:non-negative-fixnum  (* *))
+          (simple-array alex:non-negative-fixnum  (* *))
           &optional
-          (simple-array boolean      (* *)))
-         (values (simple-array fixnum (* *)) &optional))
+          (simple-array boolean (* *)))
+         (values (simple-array alex:non-negative-fixnum (* *)) &optional))
 (defun watershed (image seeds &optional (mask (make-default-mask image)))
   "Perform watershed segmentation on IMAGE. IMAGE must be a 2D
 grayscale image (2D array with element-type SINGLE-FLOAT). SEEDS is a
@@ -69,10 +71,7 @@ array of labels (element-type FIXNUM).
 An optional argument MASK is a 2D array of BOOLEANs. Pixels with
 indices where MASK is NIL are not labeled. By default, all elements in
 MASK are T."
-  (declare (type (simple-array single-float (* *)) image)
-           (type (simple-array fixnum       (* *)) seeds)
-           (type (simple-array boolean      (* *)) mask)
-           (optimize (speed 3)))
+  (declare (optimize (speed 3)))
   (check-dimensions image seeds mask)
   (let ((queue (make-priority-queue))
         (gradient (gradient-norm image))

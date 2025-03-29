@@ -7,17 +7,14 @@
 (defun binary-segmentation (image seeds-list)
   (let* ((edt (imago:distance-transform image :type :edt :feature 0))
          (pixels (image-pixels image))
-         (seeds (aops:zeros* 'fixnum (array-dimensions pixels))))
-
+         (seeds (aops:zeros* 'alexandria:non-negative-fixnum
+                             (array-dimensions pixels))))
     (loop
        for label from 1 by 1
        for seed in seeds-list do
          (setf (apply #'aref seeds seed) label))
-
     (cl-watershed:watershed
-     (aops:vectorize* 'single-float (edt)
-       (float edt))
-     seeds
+     edt seeds
      (aops:vectorize* 'boolean (pixels) (zerop pixels)))))
 
 (defun run-tests ()
