@@ -46,14 +46,19 @@
               :element-type 'boolean
               :initial-element t))
 
-(defun make-priority-queue ()
-  (declare (optimize (speed 3)))
-  (make-queue :priority-queue
-              :compare (lambda (x y)
-                         (let ((priority-x (car x))
-                               (priority-y (car y)))
-                           (declare (type fixnum priority-x priority-y))
-                           (> priority-x priority-y)))))
+;; I do not need damn-fast-priority-queue's functions to be inlined
+(defun enqueue (q x p)
+  (declare (type (unsigned-byte 32) p))
+  (q:enqueue q x (- (ash 1 32) 1 p)))
+
+(defun dequeue (q)
+  (q:dequeue q))
+
+(defun make-queue ()
+  (q:make-queue))
+
+(defun queue-size (q)
+  (q:size q))
 
 (sera:-> watershed
          ((simple-array alex:non-negative-fixnum  (* *))
@@ -73,7 +78,7 @@ indices where MASK is NIL are not labeled. By default, all elements in
 MASK are T."
   (declare (optimize (speed 3)))
   (check-dimensions image seeds mask)
-  (let ((queue (make-priority-queue))
+  (let ((queue (make-queue))
         (gradient (gradient-norm image))
         (result (copy-array seeds))
         (dimensions (array-dimensions image)))
@@ -91,7 +96,7 @@ MASK are T."
                     ;; neighbors, assign a label of some neighbor to
                     ;; the pixel at (x, y).
                     (if (zerop label-idx)
-                        (qpush queue (cons (apply #'aref gradient idx) idx))
+                        (enqueue queue idx (apply #'aref gradient idx))
                         (setf (aref result y x) label-idx))))))
 
       ;; First step: push all neigbors of seed pixels into the queue
@@ -105,7 +110,7 @@ MASK are T."
                  +neighbors+))))
 
       ;; Pop from and push to the queue until all segments are labeled
-      (loop while (nth-value 1 (qtop queue)) do
-           (let ((idx (qpop queue)))
-             (apply #'label-and-push (cdr idx)))))
+      (loop while (not (zerop (queue-size queue))) do
+           (let ((idx (dequeue queue)))
+             (apply #'label-and-push idx))))
     result))

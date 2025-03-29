@@ -1,6 +1,7 @@
 (defpackage cl-watershed
-  (:use #:cl #:queues)
-  (:local-nicknames (:alex :alexandria)
-                    (:sera :serapeum))
+  (:use #:cl)
+  (:local-nicknames (#:alex #:alexandria)
+                    (#:sera #:serapeum)
+                    (#:q    #:damn-fast-priority-queue))
   (:export #:convolve ; Just in case
            #:watershed))
