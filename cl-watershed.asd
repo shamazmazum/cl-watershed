@@ -5,9 +5,10 @@
   :description "Priority-flood watershed segmentation algorithm"
   :license "2-clause BSD"
   :serial t
-  :pathname "src/"
+  :pathname "src"
   :components ((:file "package")
                (:file "conditions")
+               (:file "util")
                (:file "gradient")
                (:file "watershed"))
   :depends-on (:alexandria
@@ -22,7 +23,7 @@
 (defsystem :cl-watershed/tests
   :name :cl-watershed/tests
   :license "2-clause BSD"
-  :pathname "tests/"
+  :pathname "tests"
   :components ((:file "package")
                (:file "tests" :depends-on ("package")))
   :depends-on (:cl-watershed :imago :fiveam))

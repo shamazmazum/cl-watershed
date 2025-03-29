@@ -10,18 +10,31 @@
 (sera:-> clamp (fixnum fixnum fixnum) (values fixnum &optional))
 (declaim (inline clamp))
 (defun clamp (val min max)
-  (declare (type fixnum val min max))
   (min (max val min) max))
 
 (sera:-> add-indices (list list list) (values list &optional))
 (declaim (inline add-indices))
 (defun add-indices (x y dimensions)
-  (declare (optimize (speed 3)))
   (mapcar
    (lambda (x y max)
      (declare (type fixnum x y max))
      (clamp (+ x y) 0 (1- max)))
    x y dimensions))
+
+(deftype index () '(integer 0 #.array-dimension-limit))
+
+(declaim (inline aref-index))
+(defun aref-index (array index)
+  (aref array
+        (the index (first index))
+        (the index (second index))))
+
+(declaim (inline (setf aref-index)))
+(defun (setf aref-index) (val array index)
+  (setf (aref array
+              (the index (first index))
+              (the index (second index)))
+        val))
 
 (declaim (inline copy-array))
 (defun copy-array (array)
@@ -57,6 +70,8 @@
 (defun make-queue ()
   (q:make-queue))
 
+(sera:-> queue-size (q:queue)
+         (values alex:non-negative-fixnum &optional))
 (defun queue-size (q)
   (q:size q))
 
@@ -76,41 +91,40 @@ array of labels (element-type FIXNUM).
 An optional argument MASK is a 2D array of BOOLEANs. Pixels with
 indices where MASK is NIL are not labeled. By default, all elements in
 MASK are T."
-  (declare (optimize (speed 3)))
+  (declare (optimize (speed 3)
+                     #+sbcl (sb-c:insert-array-bounds-checks 0)))
   (check-dimensions image seeds mask)
   (let ((queue (make-queue))
         (gradient (gradient-norm image))
         (result (copy-array seeds))
         (dimensions (array-dimensions image)))
-    (flet ((label-and-push (y x)
+    (flet ((label-and-push (index)
+             (declare (type list index))
              ;; Work only with not labeled, not masked pixels
-             (when (and (aref mask y x)
-                        (zerop (aref result y x)))
-               (loop
-                  with center = (list y x)
-                  for shift in +neighbors+
-                  for idx = (add-indices center shift dimensions)
-                  for label-idx = (apply #'aref result idx)
-                  do
-                    ;; Push in the queue all not yet labeled
-                    ;; neighbors, assign a label of some neighbor to
-                    ;; the pixel at (x, y).
-                    (if (zerop label-idx)
-                        (enqueue queue idx (apply #'aref gradient idx))
-                        (setf (aref result y x) label-idx))))))
+             (when (and (aref-index mask index)
+                        (zerop (aref-index result index)))
+               (loop for shift in +neighbors+
+                     for idx = (add-indices index shift dimensions)
+                     for label-idx = (aref-index result idx)
+                     do
+                     ;; Push in the queue all not yet labeled
+                     ;; neighbors, assign a label of some neighbor to
+                     ;; the pixel at (x, y).
+                     (if (zerop label-idx)
+                         (enqueue queue idx (aref-index gradient idx))
+                         (setf (aref-index result index) label-idx))))))
 
       ;; First step: push all neigbors of seed pixels into the queue
-      (array-operations/utilities:nested-loop (y x)
-          dimensions
+      (do-indices (image (y x))
         (when (not (zerop (aref seeds y x)))
           (let ((center (list y x)))
             (map nil (lambda (shift)
-                       (apply #'label-and-push
-                              (add-indices center shift dimensions)))
+                       (label-and-push
+                        (add-indices center shift dimensions)))
                  +neighbors+))))
 
       ;; Pop from and push to the queue until all segments are labeled
       (loop while (not (zerop (queue-size queue))) do
            (let ((idx (dequeue queue)))
-             (apply #'label-and-push idx))))
+             (label-and-push idx))))
     result))

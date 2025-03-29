@@ -17,7 +17,9 @@
          (values (simple-array fixnum (* *)) &optional))
 (defun column*row (column row)
   "Multiply column by row using matrix multiplication"
-  (declare (optimize (speed 3)))
+  (declare (optimize (speed 3)
+                     #+sbcl
+                     (sb-c:insert-array-bounds-checks 0)))
   (aops:each-index* 'fixnum (i j)
     (*
      (aref column i)
@@ -31,35 +33,23 @@
   "Perform generic convolution of a 2D array ARRAY with kernel
 KERNEL. Summation in the convolution formula is replaced with
 reduction using function FUNCTION."
-  (declare (optimize (speed 3)))
-  (let* ((array-dimensions  (array-dimensions array))
-         (kernel-dimensions (array-dimensions kernel))
-
-         (array-height (first  array-dimensions))
-         (array-width  (second array-dimensions))
-         (kernel-height/2 (ash (first  kernel-dimensions) -1))
-         (kernel-width/2  (ash (second kernel-dimensions) -1))
-
-         (result (make-array array-dimensions
-                             :element-type 'fixnum
-                             :initial-element 0)))
-    (declare (type alex:positive-fixnum
-                   array-height array-width
-                   kernel-width/2 kernel-height/2))
-    (dotimes (i array-height)
-      (declare (type alex:non-negative-fixnum i))
-      (dotimes (j array-width)
-        (declare (type alex:non-negative-fixnum i))
-        (setf (aref result i j)
-              (aops:sum-index (ik jk)
-                (let ((is (- (+ i (the fixnum ik)) kernel-height/2))
-                      (js (- (+ j (the fixnum jk)) kernel-width/2)))
-                  (if (and (<= 0 is (1- array-height))
-                           (<= 0 js (1- array-width)))
-                      (* (aref kernel ik jk)
-                         (aref array is js))
-                      0))))))
-    result))
+  (declare (optimize (speed 3)
+                     #+sbcl
+                     (sb-c:insert-array-bounds-checks 0)))
+  (let* ((array-height (array-dimension array 0))
+         (array-width  (array-dimension array 1))
+         (kernel-height/2 (ash (array-dimension kernel 0) -1))
+         (kernel-width/2  (ash (array-dimension kernel 1) -1)))
+    (do-indices/similar (fixnum array (i j))
+      (aops:sum-index (ik jk)
+        (let ((is (- (+ i ik) kernel-height/2))
+              (js (- (+ j jk) kernel-width/2)))
+          (if (and (<= 0 is (1- array-height))
+                   (<= 0 js (1- array-width)))
+              (the fixnum
+                   (* (aref kernel ik jk)
+                      (aref array is js)))
+              0))))))
 
 ;; Y/X
 (sera:-> gradient
@@ -75,12 +65,12 @@ reduction using function FUNCTION."
 
 (sera:-> gradient-norm
          ((simple-array alex:non-negative-fixnum (* *)))
-         (values (simple-array fixnum (* *)) &optional))
+         (values (simple-array alex:non-negative-fixnum (* *)) &optional))
 (defun gradient-norm (array)
   "Return squared gradient norm"
   (declare (optimize (speed 3)))
   (multiple-value-bind (y x)
       (gradient array)
-    (aops:vectorize* 'fixnum (x y)
+    (aops:vectorize* 'alex:non-negative-fixnum (x y)
       (+ (expt x 2)
          (expt y 2)))))
