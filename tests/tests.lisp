@@ -5,10 +5,7 @@
    :cl-watershed/tests "docs/disks.pbm"))
 
 (defun binary-segmentation (image seeds-list)
-  (do-image-pixels (image color x y)
-    (setf color (- 1 color)))
-
-  (let* ((edt (imago:distance-transform image :type :edt))
+  (let* ((edt (imago:distance-transform image :type :edt :feature 0))
          (pixels (image-pixels image))
          (seeds (aops:zeros* 'fixnum (array-dimensions pixels))))
 
@@ -18,7 +15,9 @@
          (setf (apply #'aref seeds seed) label))
 
     (cl-watershed:watershed
-     edt seeds
+     (aops:vectorize* 'single-float (edt)
+       (float edt))
+     seeds
      (aops:vectorize* 'boolean (pixels) (zerop pixels)))))
 
 (defun run-tests ()
