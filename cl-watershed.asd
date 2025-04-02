@@ -14,6 +14,7 @@
   :depends-on (:alexandria
                :serapeum
                :array-operations
+               :stateless-iterators
                :damn-fast-priority-queue)
   :in-order-to ((test-op (load-op "cl-watershed/tests")))
   :perform (test-op (op system)

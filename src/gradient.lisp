@@ -11,19 +11,22 @@
     (make-array 3 :element-type 'fixnum :initial-contents '(1 0 -1))
   :test #'equalp)
 
-(sera:-> column*row
-         ((simple-array fixnum (*))
-          (simple-array fixnum (*)))
-         (values (simple-array fixnum (* *)) &optional))
-(defun column*row (column row)
-  "Multiply column by row using matrix multiplication"
-  (declare (optimize (speed 3)
-                     #+sbcl
-                     (sb-c:insert-array-bounds-checks 0)))
-  (aops:each-index* 'fixnum (i j)
-    (*
-     (aref column i)
-     (aref row j))))
+(sera:-> sobel-operator (alex:positive-fixnum alex:non-negative-fixnum)
+         (values (simple-array fixnum) &optional))
+(defun sobel-operator (n i)
+  (let ((result (make-array (loop repeat n collect 3)
+                            :element-type 'fixnum)))
+    (si:do-iterator (idx (si:indices (array-dimensions result)))
+      (setf (apply #'aref result idx)
+            (si:foldl
+             #'* 1
+             (si:imap
+              (lambda (ei)
+                (let ((j   (car ei))
+                      (idx (cdr ei)))
+                  (aref (if (= i j) +sobel-diff+ +sobel-blur+) idx)))
+              (si:enumerate (si:list->iterator idx))))))
+    result))
 
 (sera:-> gradient-norm
          ((simple-array alex:non-negative-fixnum (* *)))
@@ -37,8 +40,8 @@
         (result (make-array (array-dimensions array)
                             :element-type 'alex:non-negative-fixnum
                             :initial-element 0))
-        (kernels (list (column*row +sobel-blur+ +sobel-diff+)
-                       (column*row +sobel-diff+ +sobel-blur+))))
+        (kernels (list (sobel-operator 2 0)
+                       (sobel-operator 2 1))))
     (declare (dynamic-extent kernels))
     (dolist (kernel kernels)
       (declare (type (simple-array fixnum (* *)) kernel))
