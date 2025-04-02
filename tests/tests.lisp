@@ -15,7 +15,9 @@
          (setf (apply #'aref seeds seed) label))
     (cl-watershed:watershed
      edt seeds
-     (aops:vectorize* 'boolean (pixels) (zerop pixels)))))
+     (aops:vectorize* 'boolean
+         (pixels)
+       (not (zerop pixels))))))
 
 (defun run-tests ()
   (explain! (run 'watershed)))
@@ -31,10 +33,9 @@
                             (237 292)
                             (172 365))))
          (amount (loop for segment from 1 to 4 collect
-                      (count segment (aops:flatten segments))))
-         (total (reduce #'+ amount)))
-    (is-true
+                      (count segment (aops:flatten segments)))))
+    (is
      (every
       (lambda (amount)
-        (< 0.2 (/ amount total) 0.3))
+        (< 6000 amount 6250))
       amount))))
