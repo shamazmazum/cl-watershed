@@ -35,9 +35,7 @@
   (declare (optimize (speed 3)
                      #+sbcl
                      (sb-c:insert-array-bounds-checks 0)))
-  (let ((array-height (array-dimension array 0))
-        (array-width  (array-dimension array 1))
-        (result (make-array (array-dimensions array)
+  (let ((result (make-array (array-dimensions array)
                             :element-type 'alex:non-negative-fixnum
                             :initial-element 0))
         (kernels (list (sobel-operator 2 0)
@@ -51,8 +49,7 @@
         (let ((x (aops:sum-index (ik jk)
                    (let ((is (- (+ i ik) kernel-height/2))
                          (js (- (+ j jk) kernel-width/2)))
-                     (if (and (<= 0 is (1- array-height))
-                              (<= 0 js (1- array-width)))
+                     (if (array-in-bounds-p array is js)
                          (the fixnum
                               (* (aref kernel ik jk)
                                  (aref array is js)))
