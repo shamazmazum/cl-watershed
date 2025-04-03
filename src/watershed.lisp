@@ -69,6 +69,7 @@
 (defun queue-size (q)
   (q:size q))
 
+;; Meyer's flooding
 (sera:-> watershed
          ((simple-array alex:non-negative-fixnum  (* *))
           (simple-array alex:non-negative-fixnum  (* *))
