@@ -1,10 +1,10 @@
 (in-package :cl-watershed)
 
 (alex:define-constant +neighbors+
-  '((-1  0)
-    ( 0 -1)
-    ( 0  1)
-    ( 1  0))
+    '((-1  0)
+      (+1  0)
+      ( 0 -1)
+      ( 0 +1))
   :test #'equalp)
 
 (sera:-> clamp (fixnum fixnum fixnum) (values fixnum &optional))
@@ -35,12 +35,6 @@
               (the index (first index))
               (the index (second index)))
         val))
-
-(declaim (inline copy-array))
-(defun copy-array (array)
-  (aops:each-index*
-      (array-element-type array)
-      (i j) (aref array i j)))
 
 (defun check-dimensions (image seeds mask)
   (let ((image-dim (array-dimensions image))
@@ -80,51 +74,71 @@
           (simple-array alex:non-negative-fixnum  (* *))
           &optional
           (simple-array boolean (* *)))
-         (values (simple-array alex:non-negative-fixnum (* *)) &optional))
+         (values (simple-array fixnum (* *)) &optional))
 (defun watershed (image seeds &optional (mask (make-default-mask image)))
   "Perform watershed segmentation on IMAGE. IMAGE must be a 2D
-grayscale image (2D array with element-type SINGLE-FLOAT). SEEDS is a
-2D array with element-type FIXNUM which contains already labeled
-regions of the image. The value 0 means no label. The result is a 2D
-array of labels (element-type FIXNUM).
+grayscale image (2D array with element type
+ALEXANDRIA:NON-NEGATIVE-FIXNUM). SEEDS is a 2D array with the same
+element type which contains already labeled regions of the image. The
+value 0 means no label. The result is a 2D array of labels (element
+type FIXNUM).
 
 An optional argument MASK is a 2D array of BOOLEANs. Pixels with
 indices where MASK is NIL are not labeled. By default, all elements in
-MASK are T."
+MASK are T.
+
+Watershed lines are labeled with -1."
   (declare (optimize (speed 3)
                      #+sbcl (sb-c:insert-array-bounds-checks 0)))
   (check-dimensions image seeds mask)
   (let ((queue (make-queue))
         (gradient (gradient-norm image))
-        (result (copy-array seeds))
+        (result (aops:each-index* 'fixnum
+                    (i j)
+                  (aref seeds i j)))
         (dimensions (array-dimensions image)))
-    (flet ((label-and-push (index)
+    (flet ((process (index)
              (declare (type list index))
              ;; Work only with not labeled, not masked pixels
              (when (and (aref-index mask index)
                         (zerop (aref-index result index)))
-               (loop for shift in +neighbors+
-                     for idx = (add-indices index shift dimensions)
-                     for label-idx = (aref-index result idx)
-                     do
-                     ;; Push in the queue all not yet labeled
-                     ;; neighbors, assign a label of some neighbor to
-                     ;; the pixel at (x, y).
-                     (if (zerop label-idx)
-                         (enqueue queue idx (aref-index gradient idx))
-                         (setf (aref-index result index) label-idx))))))
+               ;; Collect labels of already labeled neighbors
+               (let (first-label (same-neighbors-p t))
+                 (declare (type (or null fixnum) first-label))
+                 (loop for shift in +neighbors+
+                       for idx = (add-indices index shift dimensions)
+                       for label = (aref-index result idx)
+                       for labeledp = (/= label 0 -1) do
+                       (if labeledp
+                           (setq first-label
+                                 ;; Set the first seen neighbor label (if not already set)
+                                 (or first-label label)
+                                 same-neighbors-p
+                                 ;; Check if all neighbors have the same label
+                                 (if (and same-neighbors-p first-label)
+                                     (= first-label label)
+                                     same-neighbors-p))
+                            ;; Add non-labeled neighbord to the queue
+                           (enqueue queue idx (aref-index gradient idx)))
+                       finally
+                       ;; Set -1 for watershed line (if neighbor
+                       ;; pixels have different labels)
+                       (setf (aref-index result index)
+                             (if (and same-neighbors-p first-label)
+                                 first-label -1)))))))
 
       ;; First step: push all neigbors of seed pixels into the queue
       (do-indices (image (y x))
-        (when (not (zerop (aref seeds y x)))
-          (let ((center (list y x)))
-            (map nil (lambda (shift)
-                       (label-and-push
-                        (add-indices center shift dimensions)))
-                 +neighbors+))))
+        (let ((idx (list y x)))
+          (when (and (zerop (aref seeds y x))
+                     (some (lambda (shift)
+                             (not (zerop
+                                   (aref-index seeds (add-indices idx shift dimensions)))))
+                           +neighbors+))
+            (enqueue queue idx (aref gradient y x)))))
 
       ;; Pop from and push to the queue until all segments are labeled
       (loop while (not (zerop (queue-size queue))) do
            (let ((idx (dequeue queue)))
-             (label-and-push idx))))
+             (process idx))))
     result))
