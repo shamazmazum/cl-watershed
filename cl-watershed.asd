@@ -1,6 +1,6 @@
 (defsystem :cl-watershed
   :name :cl-watershed
-  :version "0.1"
+  :version "0.2"
   :author "Vasily Postnicov <shamaz.mazum@gmail.com>"
   :description "Priority-flood watershed segmentation algorithm"
   :license "2-clause BSD"
